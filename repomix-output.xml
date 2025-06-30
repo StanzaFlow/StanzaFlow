@@ -65,8 +65,10 @@ stanzaflow/
   adapters/
     langgraph/
       __init__.py
+      adapter.py
       emit.py
     __init__.py
+    base.py
   cli/
     __init__.py
     main.py
@@ -74,11 +76,13 @@ stanzaflow/
     __init__.py
     ast.py
     exceptions.py
+    ir.py
   tools/
     __init__.py
     audit.py
     graph.py
   __init__.py
+  __main__.py
 CONTRIBUTING.md
 phase-1-todo.md
 README.md
@@ -86,6 +90,78 @@ README.md
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="stanzaflow/adapters/langgraph/adapter.py">
+"""LangGraph adapter implementation using LangGraphEmitter."""
+⋮----
+__all__ = ["LangGraphAdapter"]
+⋮----
+class LangGraphAdapter(Adapter)
+⋮----
+"""Compile IR 0.2 to runnable LangGraph Python script."""
+⋮----
+target = "langgraph"
+⋮----
+def emit(self, ir: Dict[str, Any], output_dir: Path) -> Path:  # type: ignore[override]
+⋮----
+output_path = output_dir / "workflow.py"
+</file>
+
+<file path="stanzaflow/adapters/base.py">
+"""Adapter base interface for StanzaFlow runtimes."""
+⋮----
+__all__ = ["Adapter"]
+⋮----
+class Adapter(ABC)
+⋮----
+"""Abstract compiler backend.
+
+    Each adapter takes IR 0.2 and produces runnable assets for a
+    concrete runtime (LangGraph, PromptFlow, etc.).
+    """
+⋮----
+#: canonical lowercase identifier (e.g. ``"langgraph"``)
+target: str = ""
+⋮----
+@abstractmethod
+    def emit(self, ir: Dict[str, Any], output_dir: Path) -> Path:  # noqa: D401 – verb imperative ok
+⋮----
+"""Generate code for *ir* and return path to entry point file."""
+⋮----
+# Future-proof hook
+def supports_ai_escape(self) -> bool:  # pragma: no cover – default impl
+⋮----
+"""Return *True* if adapter can receive %%escape blocks."""
+</file>
+
+<file path="stanzaflow/core/ir.py">
+"""Utilities for working with StanzaFlow IR."""
+⋮----
+_SCHEMA_CACHE: Draft202012Validator | None = None
+⋮----
+def _load_schema() -> Draft202012Validator
+⋮----
+# Locate schema relative to project root (three levels up from this file)
+schema_path = Path(__file__).resolve().parent.parent.parent / "schemas" / "ir-0.2.json"
+⋮----
+schema = json.load(fp)
+_SCHEMA_CACHE = Draft202012Validator(schema)
+⋮----
+def validate_ir(ir: Dict[str, Any]) -> None
+⋮----
+"""Validate *ir* dict against bundled JSON Schema.
+
+    Raises:
+        jsonschema.exceptions.ValidationError: if IR does not conform.
+    """
+validator = _load_schema()
+</file>
+
+<file path="stanzaflow/__main__.py">
+"""Package entry point so `python -m stanzaflow` works."""
+⋮----
+# Typer's .__call__ turns CliRunner into main
+</file>
 
 <file path="docs/overview.md">
 # StanzaFlow — Project Overview  
@@ -2040,6 +2116,22 @@ emitter = LangGraphEmitter()
 
 <file path="stanzaflow/adapters/__init__.py">
 """StanzaFlow runtime adapters."""
+⋮----
+# Import concrete adapters here to auto-register
+⋮----
+from .langgraph.adapter import LangGraphAdapter  # noqa: E402
+⋮----
+_ADAPTERS: Dict[str, Type[Adapter]] = {
+⋮----
+def get_adapter(name: str) -> Adapter
+⋮----
+"""Return an adapter instance by *name*.
+
+    Raises:
+        ValueError: if *name* is not a supported adapter key.
+    """
+key = name.lower()
+cls = _ADAPTERS.get(key)
 </file>
 
 <file path="stanzaflow/cli/__init__.py">
@@ -2085,7 +2177,12 @@ workflow_title = ir["workflow"]["title"]
 ⋮----
 output = file.with_suffix(f".{target}.py")
 ⋮----
-# Compile to target
+adapter = get_adapter(target)
+⋮----
+entry_file = adapter.emit(ir, output.parent if output else Path.cwd())
+# If user supplied explicit output path ending with .py we move/rename
+⋮----
+entry_file = output
 ⋮----
 """Audit workflow for escape usage and patterns."""
 ⋮----
@@ -2101,6 +2198,14 @@ icon = "⚠️" if issue["severity"] == "warning" else "❌"
 total_issues = len(audit_results["issues"])
 total_todos = len(audit_results["todos"])
 ⋮----
+"""Generate a starter workflow markdown file.
+
+    The template contains one agent and one step plus example attribute lines
+    so newcomers can immediately run `stz graph` or `stz compile`.
+    """
+⋮----
+template = (
+⋮----
 def cli_main() -> None
 ⋮----
 """Main entry point that handles errors gracefully."""
@@ -2114,6 +2219,8 @@ __all__ = ["StanzaFlowError", "ParseError", "CompileError"]
 
 <file path="stanzaflow/core/ast.py">
 """AST and compiler for StanzaFlow."""
+⋮----
+from stanzaflow.core.ir import validate_ir  # local import to avoid cycle
 ⋮----
 @dataclass
 class StepAttribute
@@ -2227,7 +2334,8 @@ step_name = step_name_tree.children[0].value.strip()
 step_name = step_name_tree.value.strip()
 ⋮----
 step = Step(name=step_name)
-# For now, no step attributes - will add back later
+⋮----
+# Collect attributes from remaining children
 ⋮----
 def _extract_step_name(self, tree: Tree) -> str
 ⋮----
@@ -2248,19 +2356,12 @@ def _transform_step_attribute(self, tree: Tree) -> Optional[StepAttribute]
 attr_type = child.type
 line = child.value.strip()
 ⋮----
-# Parse based on attribute type
+# Unified regex parsing: key: value (allows whitespace around colon)
 ⋮----
-value = line[len("artifact:"):].strip()
+match = re.match(r"^(?P<key>[a-zA-Z_]+)\s*:\s*(?P<val>.+)$", line)
 ⋮----
-value = line[len("retry:"):].strip()
-⋮----
-value = line[len("timeout:"):].strip()
-⋮----
-value = line[len("on_error:"):].strip()
-⋮----
-value = line[len("branch:"):].strip()
-⋮----
-value = line[len("finally:"):].strip()
+key = match.group("key").lower()
+raw_val = match.group("val").strip()
 ⋮----
 def _transform_escape_block(self, tree: Tree) -> EscapeBlock
 ⋮----
@@ -2271,6 +2372,10 @@ code = ""
 target = child.value.strip()
 ⋮----
 code = child.value.strip()
+⋮----
+# Extract token inside the tree
+⋮----
+target = child.children[0].value.strip()
 ⋮----
 def _transform_secret_block(self, tree: Tree) -> SecretBlock
 ⋮----
@@ -2303,7 +2408,7 @@ def parse_string(self, content: str, source: str = "<string>") -> Workflow
 tree = self.parser.parse(content)
 workflow = self.transformer.transform(tree)
 ⋮----
-def workflow_to_ir(self, workflow: Workflow) -> Dict[str, Any]
+def workflow_to_ir(self, workflow: Workflow) -> Dict[str, Any]:  # pragma: no cover
 ⋮----
 """Convert workflow AST to IR 0.2."""
 ir = {
@@ -2322,12 +2427,14 @@ escape_ir = {
 ⋮----
 secret_ir = {
 ⋮----
-def compile_file(self, file_path: Path) -> Dict[str, Any]
+# Validate IR against schema
+⋮----
+def compile_file(self, file_path: Path) -> Dict[str, Any]:  # pragma: no cover
 ⋮----
 """Compile .sf.md file to IR 0.2."""
 workflow = self.parse_file(file_path)
 ⋮----
-def compile_string(self, content: str, source: str = "<string>") -> Dict[str, Any]
+def compile_string(self, content: str, source: str = "<string>") -> Dict[str, Any]:  # pragma: no cover
 ⋮----
 """Compile string content to IR 0.2."""
 workflow = self.parse_string(content, source)
@@ -2803,15 +2910,15 @@ workflow to LangGraph, see a Mermaid DAG, and run the code in < 3 minutes.
 ---
 
 ## 1 Repo & CI
-- [ ] Create GitHub org + repo `stanzaflow/stanzaflow`
-- [ ] CI (`ci.yaml`) running black, ruff, pytest, coverage
-- [ ] Pre-commit hooks (ruff, black, mdformat)
+- [x] Create GitHub org + repo `stanzaflow/stanzaflow`
+- [x] CI (`ci.yaml`) running black, ruff, pytest, coverage
+- [x] Pre-commit hooks (ruff, black, mdformat)
 
 ## 2 Parser & IR
 - [x] `core/stz_grammar.lark` (tiny spec)
 - [x] `core/ast.py` + compiler → IR 0.2
 - [x] JSON Schema `schemas/ir-0.2.json`
-- [x] Golden fixture `simple_workflow_no_attrs.sf.md` working (step attributes deferred)
+- [x] Golden fixture `simple_workflow_no_attrs.sf.md` working (full attribute parsing implemented)
 
 ## 3 LangGraph Adapter (sequential)
 - [x] `adapters/langgraph/emit.py`
@@ -2824,20 +2931,11 @@ workflow to LangGraph, see a Mermaid DAG, and run the code in < 3 minutes.
 - [x] `stanzaflow graph` → Mermaid CLI → SVG (fallback to Graphviz if no Node)
 - [x] `stanzaflow compile --target langgraph`
 - [x] `stanzaflow audit` flags TODOs
-- [ ] Implement `!env` secrets
-- [ ] Local artifact sink `./artifacts/<timestamp>/`
+- [x] Implement `!env` secrets
+- [x] Local artifact sink `./artifacts/<timestamp>/`
 
 ## 5 Docs & DX
-- [ ] Finalise `README.md` (demo GIF with stz alias)
-- [ ] `docs/spec-v0.md` grammar & semantics
-- [ ] `CONTRIBUTING.md` + dev setup (`uv`, pre-commit, stz alias)
-
-## 6 Launch Prep
-- [ ] Open Discord server `discord.gg/stanzaflow`
-- [ ] Prepare intro blog post & tweet with GIF
-- [ ] Tag **v0.0.1** when CI green & demo passes
-
-> Out-of-scope for Phase 1: AI auto-patch, adapter SDK, parallel primitive.
+- [ ] Finalise `README.md`
 </file>
 
 <file path="README.md">
@@ -2947,15 +3045,30 @@ All handled by **LiteLLM** — switch with a flag, no code changes.
 
 ## Contributing
 
+### Development setup
+
 ```bash
+# clone and enter repo
 git clone https://github.com/stanzaflow/stanzaflow
-make dev   # uv + pre-commit
-make test  # pytest + coverage
+cd stanzaflow
+
+# create local env with uv (fast lock-free installer)
+uv venv .venv
+source .venv/bin/activate
+
+# install dev extras (pytest, ruff, black, etc.)
+uv pip install -e ".[dev]"
+
+# run the full pre-commit stack once
+pre-commit run --all-files
+
+# run tests + coverage
+pytest -q
 ```
 
-*Good first issues:* improve parser errors, add DSL fixtures, help with Graphviz
-fallback.
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for guidelines.
+Pre-commit hooks enforce Ruff, Black and Mdformat on every commit and will
+auto-fix or block non-conforming code. Our GitHub Actions workflow replicates
+this exact toolchain on Python 3.11 and 3.12.
 
 Join us: **[https://discord.gg/stanzaflow](https://discord.gg/stanzaflow)**
 

@@ -67,7 +67,7 @@ def graph(
         ir = compiler.compile_file(file)
         
         # Determine output path
-        if not output:
+        if output is None:
             output = file.with_suffix(f".{out_fmt}")
         
         # Generate graph
@@ -114,17 +114,23 @@ def compile(
         console.print(f"✅ Parsed: {workflow_title}")
         
         # Determine output path
-        if not output:
+        if output is None:
             output = file.with_suffix(f".{target}.py")
         
-        # Compile to target
-        if target == "langgraph":
-            from stanzaflow.adapters.langgraph.emit import compile_to_langgraph
-            console.print("🔧 Generating LangGraph code...")
-            compile_to_langgraph(ir, output)
-        else:
-            console.print(f"[red]Error:[/red] Unsupported target '{target}'. Supported: langgraph")
+        from stanzaflow.adapters import get_adapter
+
+        try:
+            adapter = get_adapter(target)
+        except ValueError as e:
+            console.print(f"[red]Error:[/red] {e}")
             raise typer.Exit(1)
+
+        console.print(f"🔧 Generating {target} code…")
+        entry_file = adapter.emit(ir, output.parent if output else Path.cwd())
+        # If user supplied explicit output path ending with .py we move/rename
+        if output and output.suffix == ".py" and output != entry_file:
+            entry_file.rename(output)
+            entry_file = output
         
         console.print(f"✅ [green]Successfully compiled to:[/green] {output}")
         
@@ -199,6 +205,34 @@ def audit(
             import traceback
             console.print(f"[red]Details:[/red] {traceback.format_exc()}")
         raise typer.Exit(1)
+
+
+@app.command()
+def init(
+    file: Path = typer.Argument(Path("workflow.sf.md"), help="Destination .sf.md file to create"),
+) -> None:
+    """Generate a starter workflow markdown file.
+
+    The template contains one agent and one step plus example attribute lines
+    so newcomers can immediately run `stz graph` or `stz compile`.
+    """
+
+    if file.exists():
+        console.print(f"[red]Error:[/red] File {file} already exists")
+        raise typer.Exit(1)
+
+    template = (
+        "# Workflow: Hello StanzaFlow\n\n"
+        "## Agent: Bot\n"
+        "- Step: Greet\n"
+        "  artifact: greeting.txt\n"
+        "  retry: 3\n"
+        "  timeout: 30\n"
+    )
+
+    file.write_text(template, encoding="utf-8")
+    console.print(f"✅ [green]Created starter workflow:[/green] {file}")
+    console.print("Next ➜  stz graph", file)
 
 
 def cli_main() -> None:

@@ -43,4 +43,14 @@ def test_audit_existing_file():
     fixture_path = Path(__file__).parent / "fixtures" / "simple_workflow_no_attrs.sf.md"
     result = runner.invoke(app, ["audit", str(fixture_path)])
     assert result.exit_code == 0
-    assert "Auditing" in result.stdout 
+    assert "Auditing" in result.stdout
+
+
+def test_init_creates_file(tmp_path):
+    """`stz init` should scaffold a new file."""
+    new_file = tmp_path / "demo.sf.md"
+    result = runner.invoke(app, ["init", str(new_file)])
+    assert result.exit_code == 0
+    assert new_file.exists()
+    content = new_file.read_text()
+    assert "Workflow:" in content and "Agent:" in content 

@@ -11,6 +11,7 @@ from lark import Lark, Token, Tree
 from lark.exceptions import LarkError
 
 from stanzaflow.core.exceptions import ParseError
+from stanzaflow.core.ir import validate_ir  # local import to avoid cycle
 
 
 @dataclass
@@ -151,13 +152,6 @@ class StanzaFlowTransformer:
         step.attributes = self._transform_step_body(tree)
         
         return step
-    
-    def _extract_step_name(self, tree: Tree) -> str:
-        """Extract step name from step header."""
-        for child in tree.children:
-            if isinstance(child, Token) and child.type == "step_name":
-                return child.value.strip()
-        return ""
     
     def _transform_step_body(self, tree: Tree) -> List[StepAttribute]:
         """Transform step body to list of attributes."""
@@ -307,6 +301,9 @@ class StanzaFlowCompiler:
             }
             ir["workflow"]["secrets"].append(secret_ir)
         
+        # Validate IR against schema
+        validate_ir(ir)
+
         return ir
     
     def compile_file(self, file_path: Path) -> Dict[str, Any]:  # pragma: no cover

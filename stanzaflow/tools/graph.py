@@ -3,6 +3,8 @@
 import subprocess
 import tempfile
 import shutil
+import hashlib
+import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -13,6 +15,8 @@ console = Console()
 # Cache for tool availability checks
 _MERMAID_AVAILABLE: Optional[bool] = None
 _GRAPHVIZ_AVAILABLE: Optional[bool] = None
+# Lock to guard cache mutation in multithreaded contexts
+_CACHE_LOCK = threading.Lock()
 
 
 def _reset_tool_cache() -> None:
@@ -71,7 +75,7 @@ def _generate_mermaid_diagram(ir: Dict[str, Any]) -> str:
     prev_node = "START"
     for i, agent in enumerate(agents):
         agent_name = agent.get("name", f"Agent{i+1}")
-        agent_id = f"AGENT_{i}"
+        agent_id = _stable_id("AGENT", agent_name)
         
         # Agent node
         lines.append(f'    {agent_id}["{agent_name}"]')
@@ -80,7 +84,7 @@ def _generate_mermaid_diagram(ir: Dict[str, Any]) -> str:
         steps = agent.get("steps", [])
         for j, step in enumerate(steps):
             step_name = step.get("name", f"Step{j+1}")
-            step_id = f"STEP_{i}_{j}"
+            step_id = _stable_id("STEP", f"{agent_name}:{step_name}")
             
             # Step node with attributes info
             attributes = step.get("attributes", {})
@@ -128,17 +132,18 @@ def _try_mermaid_cli(mermaid_content: str, output_path: Path, out_fmt: str) -> b
     
     try:
         # Check if mmdc is available (cached)
-        if _MERMAID_AVAILABLE is None:
-            mmdc_path = shutil.which("mmdc")
-            if not mmdc_path:
-                _MERMAID_AVAILABLE = False
-                return False
-            try:
-                subprocess.run(["mmdc", "--version"], capture_output=True, check=True)
-                _MERMAID_AVAILABLE = True
-            except (subprocess.CalledProcessError, FileNotFoundError):
-                _MERMAID_AVAILABLE = False
-                return False
+        with _CACHE_LOCK:
+            if _MERMAID_AVAILABLE is None:
+                mmdc_path = shutil.which("mmdc")
+                if not mmdc_path:
+                    _MERMAID_AVAILABLE = False
+                    return False
+                try:
+                    subprocess.run(["mmdc", "--version"], capture_output=True, check=True)
+                    _MERMAID_AVAILABLE = True
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    _MERMAID_AVAILABLE = False
+                    return False
         
         if not _MERMAID_AVAILABLE:
             return False
@@ -251,7 +256,7 @@ def _try_raw_graphviz(ir: Dict[str, Any], output_path: Path, out_fmt: str) -> bo
             prev_node = "start"
             for i, agent in enumerate(agents):
                 agent_name = agent.get("name", f"Agent{i+1}")
-                agent_id = f"agent_{i}"
+                agent_id = _stable_id("agent", agent_name)
                 
                 # Escape quotes in agent name
                 escaped_name = agent_name.replace('"', '\\"')
@@ -271,16 +276,17 @@ def _try_raw_graphviz(ir: Dict[str, Any], output_path: Path, out_fmt: str) -> bo
         global _GRAPHVIZ_AVAILABLE
         try:
             # Check if dot is available (cached)
-            if _GRAPHVIZ_AVAILABLE is None:
-                dot_path = shutil.which("dot")
-                if not dot_path:
-                    _GRAPHVIZ_AVAILABLE = False
-                else:
-                    try:
-                        subprocess.run(["dot", "-V"], capture_output=True, check=True)
-                        _GRAPHVIZ_AVAILABLE = True
-                    except (subprocess.CalledProcessError, FileNotFoundError):
+            with _CACHE_LOCK:
+                if _GRAPHVIZ_AVAILABLE is None:
+                    dot_path = shutil.which("dot")
+                    if not dot_path:
                         _GRAPHVIZ_AVAILABLE = False
+                    else:
+                        try:
+                            subprocess.run(["dot", "-V"], capture_output=True, check=True)
+                            _GRAPHVIZ_AVAILABLE = True
+                        except (subprocess.CalledProcessError, FileNotFoundError):
+                            _GRAPHVIZ_AVAILABLE = False
             
             if not _GRAPHVIZ_AVAILABLE:
                 # No Graphviz CLI available, fall through to text fallback
@@ -331,3 +337,9 @@ def _try_raw_graphviz(ir: Dict[str, Any], output_path: Path, out_fmt: str) -> bo
             
     except Exception:
         return False 
+
+
+# Helper to create stable node IDs avoiding collisions
+def _stable_id(prefix: str, name: str) -> str:
+    digest = hashlib.sha1(name.encode("utf-8")).hexdigest()[:8]
+    return f"{prefix}_{digest}" 
