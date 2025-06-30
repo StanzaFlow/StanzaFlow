@@ -1,0 +1,88 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Cursor Rules ─ StanzaFlow
+
+These rules are **authoritative** for all AI-generated code, docs, or fixes in
+this repo.  Deviation requires an explicit //override note.
+
+---
+
+## 1 Environment & Packaging
+* Use **Python 3.11+**.
+* Dependency manager = **uv**.  
+  * Create envs via `uv venv .venv`  
+  * Add deps with `uv pip install <pkg>` → updates **pyproject.toml**.
+* Project metadata lives **only** in `pyproject.toml` (PEP 621); no `setup.py`.
+* Do **NOT** introduce Poetry, Pipenv, or requirements.txt.
+
+## 2 Libraries & Frameworks
+| Concern | Mandatory choice |
+|---------|------------------|
+| Parser generator | **Lark** PEG mode (`core/stz_grammar.lark`) |
+| CLI | **Typer** (`stanzaflow` + short alias `stz`) |
+| LLM Client | **LiteLLM** (`openai`, `openrouter`, or `ollama` backends) |
+| Diagrams | **Mermaid CLI** (`mmdc`) → SVG; if Node absent fallback to **Graphviz** via `diagrams` |
+| Testing | **pytest** (+ `pytest-asyncio`) |
+| Lint / Format | **ruff** + **black**; ruff handles isort |
+| Type-checking | **mypy** (strict) & pyright action in CI |
+
+## 3 Code Style
+* Always include **type hints**, even for internal helpers.
+* Public functions must have Google-style docstrings.
+* Run `ruff --fix` and `black` before committing; CI will enforce.
+* Adhere to `mypy --strict` unless a rule is explicitly ignored with a reason.
+
+## 4 Project Structure
+```
+
+stanzaflow/
+├ core/                # parser, IR, audit
+├ adapters/langgraph/  # adapter code
+├ cli/                 # Typer entrypoints
+├ tests/               # pytest fixtures & golden files
+└ docs/                # markdown docs, roadmap, specs
+
+```
+
+* New runtimes live under `adapters/<name>/`.
+* `.sf.md` is the canonical source file extension; keep sample files in
+  `tests/fixtures/`.
+
+## 5 CLI Conventions
+* Commands: `stanzaflow graph`, `stanzaflow compile`, `stanzaflow audit`.  
+  * `stz` alias must behave identically.
+* Flags follow Typer/Click POSIX style (`--ai-escapes`, `--model`, etc.).
+* Secrets pulled only from `!env VAR` at compile-time (never stored).
+
+## 6 AI Auto-Patch
+* Use `core/ai_escape.py` helper (LiteLLM) when adapter raises
+  `UnsupportedPattern`.
+* Generated code **must**:
+  * Carry MIT header comment.
+  * Pass adapter unit tests and `stanzaflow audit`.
+  * Be cached under `~/.stanzaflow/cache/escapes/`.
+* Sandbox execution via `safe_exec` util (seccomp enforced).
+
+## 7 Testing & Coverage
+* Place new workflow fixtures under `tests/fixtures/`.
+* Minimum coverage threshold: **90 %** for `core/` and `adapters/`.
+* Each PR must add/extend tests when code paths change.
+
+## 8 CI / GitHub Actions
+* Matrix: `python-version: [3.11, 3.12]`.
+* Install with `uv pip install -e ".[dev]"`.
+* Default CI runs with `--ai-escapes off`; nightly job runs with it **on** to
+  detect hash drift.
+
+## 9 Docs & Demos
+* Update `docs/spec-v0.md` if grammar or semantics change.
+* Keep README code snippets runnable (`pytest --nbval` validates).
+* Demo GIFs: prefer `stz` alias for brevity.
+
+---
+
+### Remember  
+> *Stay in the story; if plumbing is needed, generate it once, test it, and cache it.*

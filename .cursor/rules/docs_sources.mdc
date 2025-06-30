@@ -1,0 +1,23 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Cursor Rules — Project Docs
+
+1. **When generating code or explanations**, prefer citing material in
+   `docs_sources/`. Examples:
+
+   * Grammar details → `stanzaflow-spec.md`
+   * Parser tips → `lark-user-guide.md`
+   * CLI patterns → `typer-docs.md`
+   * AI helper APIs → `litellm-reference.md`
+
+2. If an answer depends on external docs, **link to the local mirror** instead
+   of the remote URL.
+
+3. Do **not** modify files inside `docs_sources/` directly; open a PR that
+   updates `tools/bootstrap_docs.sh` and re-runs the fetch script.
+
+4. This rule-file supplements `.cursor-rules.md`; all previous coding norms
+   still apply. 

@@ -1,0 +1,50 @@
+// StanzaFlow Grammar v0.2
+// Simplified version to get basic functionality working
+
+start: workflow
+
+workflow: heading content*
+
+heading: HEADING
+
+content: agent_block
+       | escape_block
+       | secret_block
+
+agent_block: agent_header step*
+
+agent_header: AGENT_HEADER agent_name
+
+%import common.NEWLINE
+
+step: step_header step_name (NEWLINE step_attr)*
+
+step_header: "-" "Step:"
+step_name: /[^\n\r]+/
+
+step_attr: STEP_ATTR_LINE
+
+escape_block: ESCAPE_START escape_target CODE_BLOCK ESCAPE_END
+
+secret_block: SECRET_KEY ENV_VAR
+
+// Terminal definitions
+HEADING: /^# .+$/m
+AGENT_HEADER: /^## Agent:/m
+agent_name: /[^\n\r]+/
+
+SECRET_KEY: /^!env /m
+ENV_VAR: /[A-Z_][A-Z0-9_]*/
+
+ESCAPE_START: /^%%escape /m
+escape_target: /[^\n\r]+/
+ESCAPE_END: /^%%$/m
+CODE_BLOCK: /(?s:.+?)(?=^%%$)/m
+
+// Step attribute line (indented key: value)
+STEP_ATTR_LINE: /^\s{2,}[a-zA-Z_]+:\s*.+$/m
+
+// Ignore whitespace and comments
+%import common.WS
+%ignore WS
+%ignore /^#[^#].*/m  // Single # comments (not headings) 

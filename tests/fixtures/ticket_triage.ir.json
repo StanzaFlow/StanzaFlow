@@ -1,0 +1,42 @@
+{
+  "ir_version": "0.2",
+  "workflow": {
+    "title": "Workflow: Ticket Triage",
+    "agents": [
+      {
+        "name": "Bot",
+        "steps": [
+          {
+            "name": "Hello",
+            "attributes": {
+              "artifact": "hello.txt",
+              "timeout": 30
+            }
+          },
+          {
+            "name": "Analyze ticket",
+            "attributes": {
+              "artifact": "analysis.json",
+              "retry": 3,
+              "on_error": "escalate"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Human",
+        "steps": [
+          {
+            "name": "Review analysis",
+            "attributes": {
+              "artifact": "review.md",
+              "finally": "cleanup"
+            }
+          }
+        ]
+      }
+    ],
+    "escape_blocks": [],
+    "secrets": []
+  }
+} 
