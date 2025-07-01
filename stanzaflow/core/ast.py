@@ -10,13 +10,16 @@ try:
     from importlib.resources import files
 except ImportError:
     # Python < 3.9 fallback
-    from importlib_resources import files
+    from importlib_resources import files  # type: ignore[import-not-found,no-redef]
 
 from lark import Lark, Token, Tree
 from lark.exceptions import LarkError
 
 from stanzaflow.core.exceptions import ParseError
 from stanzaflow.core.ir import validate_ir  # local import to avoid cycle
+
+# Type alias for Lark tree children
+TreeChild = Token | Tree[Token]
 
 
 @dataclass
@@ -75,13 +78,18 @@ class Workflow:
 class StanzaFlowTransformer:
     """Transforms Lark parse tree to StanzaFlow AST."""
 
-    def transform(self, tree: Tree) -> Workflow:
+    def transform(self, tree: Tree[Token]) -> Workflow:
         """Transform parse tree to workflow AST."""
         workflow = Workflow(title="")
 
         # Handle start -> workflow structure
         if tree.data == "start":
-            tree = tree.children[0]  # Get the workflow tree
+            first_child = tree.children[0]
+            if isinstance(first_child, Tree):
+                tree = first_child  # Get the workflow tree
+            else:
+                # If first child is not a Tree, create empty workflow
+                return workflow
 
         for child in tree.children:
             if isinstance(child, Tree):
@@ -103,19 +111,23 @@ class StanzaFlowTransformer:
 
         return workflow
 
-    def _extract_heading(self, tree: Tree) -> str:
+    def _extract_heading(self, tree: Tree[Token]) -> str:
         """Extract heading text."""
         # The heading should contain a HEADING token
         for child in tree.children:
             if isinstance(child, Token) and child.type == "HEADING":
                 # Remove '# ' prefix
-                return child.value.strip().lstrip("# ").strip()
+                heading_text = child.value.strip().lstrip("# ").strip()
+                return heading_text
         return ""
 
-    def _transform_agent_block(self, tree: Tree) -> Agent:
+    def _transform_agent_block(self, tree: Tree[Token]) -> Agent:
         """Transform agent block to Agent."""
         agent_header = tree.children[0]
-        agent_name = self._extract_agent_name(agent_header)
+        if isinstance(agent_header, Tree):
+            agent_name = self._extract_agent_name(agent_header)
+        else:
+            agent_name = ""
 
         agent = Agent(name=agent_name)
 
@@ -127,18 +139,20 @@ class StanzaFlowTransformer:
 
         return agent
 
-    def _extract_agent_name(self, tree: Tree) -> str:
+    def _extract_agent_name(self, tree: Tree[Token]) -> str:
         """Extract agent name from agent header."""
         for child in tree.children:
             if isinstance(child, Tree) and child.data == "agent_name":
                 # Extract from the tree's first token
                 if child.children and isinstance(child.children[0], Token):
-                    return child.children[0].value.strip()
+                    agent_name = child.children[0].value.strip()
+                    return agent_name
             elif isinstance(child, Token) and child.type == "agent_name":
-                return child.value.strip()
+                agent_name = child.value.strip()
+                return agent_name
         return ""
 
-    def _transform_step(self, tree: Tree) -> Step:
+    def _transform_step(self, tree: Tree[Token]) -> Step:
         """Transform step to Step."""
         # Structure: step_header step_name
         step_name_tree = tree.children[1]  # step_name tree
@@ -160,7 +174,7 @@ class StanzaFlowTransformer:
 
         return step
 
-    def _transform_step_body(self, tree: Tree) -> list[StepAttribute]:
+    def _transform_step_body(self, tree: Tree[Token]) -> list[StepAttribute]:
         """Transform step body to list of attributes."""
         attributes = []
 
@@ -172,7 +186,7 @@ class StanzaFlowTransformer:
 
         return attributes
 
-    def _transform_step_attribute(self, tree: Tree) -> StepAttribute | None:
+    def _transform_step_attribute(self, tree: Tree[Token]) -> StepAttribute | None:
         """Transform step attribute."""
         # Structure: one of the ATTR_* tokens
         for child in tree.children:
@@ -201,7 +215,7 @@ class StanzaFlowTransformer:
 
         return None
 
-    def _transform_escape_block(self, tree: Tree) -> EscapeBlock:
+    def _transform_escape_block(self, tree: Tree[Token]) -> EscapeBlock:
         """Transform escape block."""
         target = ""
         code = ""
@@ -219,7 +233,7 @@ class StanzaFlowTransformer:
 
         return EscapeBlock(target=target, code=code)
 
-    def _transform_secret_block(self, tree: Tree) -> SecretBlock:
+    def _transform_secret_block(self, tree: Tree[Token]) -> SecretBlock:
         """Transform secret block."""
         env_var = ""
 
@@ -254,7 +268,7 @@ class StanzaFlowCompiler:
             content = file_path.read_text(encoding="utf-8")
             return self.parse_string(content, str(file_path))
         except Exception as e:
-            raise ParseError(f"Failed to read file {file_path}: {e}")
+            raise ParseError(f"Failed to read file {file_path}: {e}") from e
 
     def parse_string(self, content: str, source: str = "<string>") -> Workflow:
         """Parse string content to workflow AST."""
@@ -263,9 +277,9 @@ class StanzaFlowCompiler:
             workflow = self.transformer.transform(tree)
             return workflow
         except LarkError as e:
-            raise ParseError(f"Parse error in {source}: {e}")
+            raise ParseError(f"Parse error in {source}: {e}") from e
         except Exception as e:
-            raise ParseError(f"Unexpected error parsing {source}: {e}")
+            raise ParseError(f"Unexpected error parsing {source}: {e}") from e
 
     def workflow_to_ir(self, workflow: Workflow) -> dict[str, Any]:  # pragma: no cover
         """Convert workflow AST to IR 0.2."""

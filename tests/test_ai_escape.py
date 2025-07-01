@@ -1,14 +1,15 @@
 """Tests for AI escape functionality."""
 
+import pytest
+
 from stanzaflow.core.ai_escape import (
     AIEscapeError,
+    cache_escape_result,
     create_escape_hash,
+    get_cached_escape,
     process_ai_escapes,
     validate_generated_code,
-    cache_escape_result,
-    get_cached_escape,
 )
-import pytest
 
 
 class TestAIEscape:
@@ -57,18 +58,18 @@ class TestAIEscape:
         """Test escape hash creation."""
         escape_block1 = {"target": "langgraph", "code": "Some AI escape content"}
         escape_block2 = {"target": "langgraph", "code": "Some AI escape content"}
-        
+
         hash1 = create_escape_hash(escape_block1)
         hash2 = create_escape_hash(escape_block2)
-        
+
         # Same content should produce same hash
         assert hash1 == hash2
-        
+
         # Different content should produce different hash
         escape_block3 = {"target": "langgraph", "code": "Different content"}
         hash3 = create_escape_hash(escape_block3)
         assert hash1 != hash3
-        
+
         # Hash should be reasonable length (SHA-256 truncated to 16 hex chars)
         assert len(hash1) == 16
         assert all(c in "0123456789abcdef" for c in hash1)
@@ -92,7 +93,7 @@ def hello(
 """
         try:
             validate_generated_code(code, "langgraph")
-            assert False, "Should have raised AIEscapeError"
+            raise AssertionError("Should have raised AIEscapeError")
         except AIEscapeError as e:
             assert "syntax errors" in str(e)
 
@@ -141,7 +142,9 @@ def hello(
 
         # Only escape blocks should be modified
         assert len(result["workflow"]["escape_blocks"]) == 1
-        assert "AI-generated code (stub)" in result["workflow"]["escape_blocks"][0]["code"]
+        assert (
+            "AI-generated code (stub)" in result["workflow"]["escape_blocks"][0]["code"]
+        )
 
     def test_validate_generated_code_aliased_imports(self):
         """Test detection of aliased dangerous imports."""
@@ -151,12 +154,14 @@ import os as operating_system
 sp.run(['echo', 'hello'])
 operating_system.system('ls')
 """
-        
+
         with pytest.raises(AIEscapeError) as exc_info:
             validate_generated_code(dangerous_code, "langgraph")
-        
+
         error_msg = str(exc_info.value)
-        assert "Dangerous aliased import" in error_msg or "Dangerous import" in error_msg
+        assert (
+            "Dangerous aliased import" in error_msg or "Dangerous import" in error_msg
+        )
 
     def test_validate_generated_code_suspicious_calls(self):
         """Test detection of suspicious single-letter variable calls."""
@@ -166,10 +171,10 @@ from langgraph.graph import StateGraph
 s.system('rm -rf /')
 o.popen('dangerous command')
 """
-        
+
         with pytest.raises(AIEscapeError) as exc_info:
             validate_generated_code(suspicious_code, "langgraph")
-        
+
         error_msg = str(exc_info.value)
         assert "Suspicious aliased call" in error_msg
 
@@ -182,7 +187,7 @@ from langgraph.graph import StateGraph
 def simple_function():
     return "hello"
 """
-        
+
         # This should complete well under the 5-second timeout
         assert validate_generated_code(simple_code, "langgraph") is True
 
@@ -190,14 +195,14 @@ def simple_function():
         """Test AI escape caching functionality."""
         test_hash = "test_hash_123"
         test_code = "# Test generated code"
-        
+
         # Test caching
         cache_escape_result(test_hash, test_code)
-        
+
         # Test retrieval
         cached_code = get_cached_escape(test_hash)
         assert cached_code == test_code
-        
+
         # Test non-existent cache
         non_existent = get_cached_escape("non_existent_hash")
-        assert non_existent is None 
+        assert non_existent is None

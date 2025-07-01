@@ -22,7 +22,7 @@ def audit_workflow(
     Returns:
         Dict with issues, todos, recommendations, and statistics
     """
-    results = {
+    results: dict[str, Any] = {
         "issues": [],
         "todos": [],
         "recommendations": [],
@@ -70,9 +70,9 @@ def _collect_statistics(workflow: dict[str, Any], results: dict[str, Any]) -> No
     escape_blocks = workflow.get("escape_blocks", [])
 
     total_steps = sum(len(agent.get("steps", [])) for agent in agents)
-    
+
     # Count step attributes
-    attribute_counts = {}
+    attribute_counts: dict[str, int] = {}
     for agent in agents:
         for step in agent.get("steps", []):
             for attr in step.get("attributes", {}):
@@ -80,6 +80,7 @@ def _collect_statistics(workflow: dict[str, Any], results: dict[str, Any]) -> No
 
     # Get safe secrets summary (masked values)
     from stanzaflow.core.secrets import get_safe_secrets_summary
+
     ir = {"workflow": workflow}
     safe_secrets = get_safe_secrets_summary(ir)
 
@@ -424,10 +425,10 @@ def _check_secrets_configuration(
 ) -> None:
     """Check secrets configuration for issues."""
     secrets = workflow.get("secrets", [])
-    
+
     if not secrets:
         return
-    
+
     seen_vars = set()
     for secret in secrets:
         env_var = secret.get("env_var")
@@ -440,7 +441,7 @@ def _check_secrets_configuration(
                 }
             )
             continue
-            
+
         if env_var in seen_vars:
             results["issues"].append(
                 {
@@ -450,17 +451,17 @@ def _check_secrets_configuration(
                 }
             )
         seen_vars.add(env_var)
-        
+
         # Check naming conventions
         if not env_var.isupper():
             results["recommendations"].append(
                 f"Consider using uppercase for environment variable '{env_var}' (conventional style)"
             )
-        
+
         if not env_var.replace("_", "").isalnum():
             results["issues"].append(
                 {
-                    "severity": "warning", 
+                    "severity": "warning",
                     "message": f"Environment variable '{env_var}' contains special characters",
                     "details": "Environment variables should only contain letters, numbers, and underscores",
                 }
@@ -472,11 +473,11 @@ def _generate_summary(results: dict[str, Any]) -> None:
     issues = results["issues"]
     todos = results["todos"]
     stats = results["statistics"]
-    
+
     # Count by severity
     error_count = sum(1 for issue in issues if issue.get("severity") == "error")
     warning_count = sum(1 for issue in issues if issue.get("severity") == "warning")
-    
+
     # Determine overall health
     if error_count > 0:
         health = "poor"
@@ -486,7 +487,7 @@ def _generate_summary(results: dict[str, Any]) -> None:
         health = "good"
     else:
         health = "excellent"
-    
+
     results["summary"] = {
         "health": health,
         "total_issues": len(issues),
@@ -503,10 +504,10 @@ def _calculate_complexity_score(stats: dict[str, Any]) -> str:
     agents = stats.get("agents", 0)
     steps = stats.get("total_steps", 0)
     attributes = sum(stats.get("attribute_usage", {}).values())
-    
+
     # Simple scoring algorithm
     score = agents * 2 + steps + attributes * 0.5
-    
+
     if score < 5:
         return "simple"
     elif score < 15:

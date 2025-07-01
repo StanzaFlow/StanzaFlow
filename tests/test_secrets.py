@@ -8,7 +8,12 @@ from unittest.mock import patch
 import pytest
 
 from stanzaflow.core.ast import StanzaFlowCompiler
-from stanzaflow.core.secrets import resolve_secrets, validate_secrets, mask_secret_value, get_safe_secrets_summary
+from stanzaflow.core.secrets import (
+    get_safe_secrets_summary,
+    mask_secret_value,
+    resolve_secrets,
+    validate_secrets,
+)
 
 
 class TestSecretsHandling:
@@ -171,6 +176,7 @@ class TestSecretsHandling:
     def test_cli_validates_secrets(self):
         """Test that CLI validates secrets before compilation."""
         import typer
+
         from stanzaflow.cli.main import compile as cli_compile
 
         # Create a temporary workflow file with secrets
@@ -237,31 +243,29 @@ class TestSecretsHandling:
 
     def test_mask_secret_value_edge_cases(self):
         """Test secret masking with various edge cases."""
-        from stanzaflow.core.secrets import mask_secret_value
-        
+
         # Empty string
         assert mask_secret_value("") == "***"
-        
+
         # Very short secrets (should be fully masked)
         assert mask_secret_value("a") == "***"
         assert mask_secret_value("ab") == "***"
         assert mask_secret_value("abc") == "***"
         assert mask_secret_value("abcd") == "***"
         assert mask_secret_value("abcde") == "***"
-        
+
         # Just long enough to show partial
         assert mask_secret_value("abcdef") == "ab***ef"
         assert mask_secret_value("1234567890") == "12***90"
-        
+
         # Longer secrets
         assert mask_secret_value("sk-1234567890abcdef") == "sk***ef"
         assert mask_secret_value("very_long_secret_token_here") == "ve***re"
 
     def test_get_safe_secrets_summary(self):
         """Test getting safe secrets summary for audit purposes."""
-        from stanzaflow.core.secrets import get_safe_secrets_summary
         import os
-        
+
         # Test with mixed secret states
         ir = {
             "workflow": {
@@ -272,23 +276,23 @@ class TestSecretsHandling:
                 ]
             }
         }
-        
+
         # Set up test environment
         os.environ["EXISTING_SECRET"] = "sk-1234567890abcdef"
         os.environ["SHORT_SECRET"] = "abc"
         if "MISSING_SECRET" in os.environ:
             del os.environ["MISSING_SECRET"]
-        
+
         try:
             summary = get_safe_secrets_summary(ir)
-            
+
             assert summary["EXISTING_SECRET"] == "sk***ef"
             assert summary["SHORT_SECRET"] == "***"  # Short secret fully masked
             assert summary["MISSING_SECRET"] == "NOT_SET"
-            
+
         finally:
             # Clean up
             if "EXISTING_SECRET" in os.environ:
                 del os.environ["EXISTING_SECRET"]
             if "SHORT_SECRET" in os.environ:
-                del os.environ["SHORT_SECRET"] 
+                del os.environ["SHORT_SECRET"]

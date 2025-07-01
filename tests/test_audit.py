@@ -43,7 +43,12 @@ class TestAuditTool:
         summary = results["summary"]
         assert summary["health"] in ["excellent", "good", "fair", "poor"]
         assert "complexity_score" in summary
-        assert summary["complexity_score"] in ["simple", "moderate", "complex", "very complex"]
+        assert summary["complexity_score"] in [
+            "simple",
+            "moderate",
+            "complex",
+            "very complex",
+        ]
 
     def test_audit_complex_workflow(self):
         """Test auditing a complex workflow."""
@@ -79,9 +84,7 @@ class TestAuditTool:
                     {"env_var": "API_KEY"},
                     {"env_var": "SECRET_TOKEN"},
                 ],
-                "escape_blocks": [
-                    {"target": "langgraph", "code": "custom_logic()"}
-                ],
+                "escape_blocks": [{"target": "langgraph", "code": "custom_logic()"}],
             },
         }
 
@@ -140,9 +143,11 @@ class TestAuditTool:
         results = audit_workflow(ir, "langgraph", verbose=True)
 
         issues = results["issues"]
-        
+
         # Should detect missing title
-        has_title_issue = any("title" in issue.get("message", "").lower() for issue in issues)
+        has_title_issue = any(
+            "title" in issue.get("message", "").lower() for issue in issues
+        )
         assert has_title_issue
 
         # Should detect duplicate agent name
@@ -158,7 +163,9 @@ class TestAuditTool:
         assert has_duplicate_step
 
         # Should detect empty agent
-        has_empty_agent = any("no steps" in issue.get("message", "").lower() for issue in issues)
+        has_empty_agent = any(
+            "no steps" in issue.get("message", "").lower() for issue in issues
+        )
         assert has_empty_agent
 
         # Should detect duplicate secret
@@ -208,12 +215,15 @@ class TestAuditTool:
         assert has_invalid_chars
 
         # Should find duplicate secret
-        has_duplicate = any("duplicate secret" in issue.get("message", "").lower() for issue in issues)
+        has_duplicate = any(
+            "duplicate secret" in issue.get("message", "").lower() for issue in issues
+        )
         assert has_duplicate
 
         # Should find missing env_var
         has_missing_var = any(
-            "missing environment variable" in issue.get("message", "").lower() for issue in issues
+            "missing environment variable" in issue.get("message", "").lower()
+            for issue in issues
         )
         assert has_missing_var
 
@@ -281,7 +291,10 @@ class TestAuditTool:
                     {
                         "name": "PerfectAgent",
                         "steps": [
-                            {"name": "PerfectStep", "attributes": {"artifact": "output.txt"}}
+                            {
+                                "name": "PerfectStep",
+                                "attributes": {"artifact": "output.txt"},
+                            }
                         ],
                     }
                 ],

@@ -151,9 +151,11 @@ class TestLangGraphEmitter:
             assert "max_retries = 3" in content
             assert "# Timeout handling for TestStep" in content
             assert "signal.alarm(30)" in content
-            
+
             # Check that unsupported attributes generate TODO comments
-            assert "# TODO[escape]: Unsupported attributes → unsupported_attr" in content
+            assert (
+                "# TODO[escape]: Unsupported attributes → unsupported_attr" in content
+            )
 
         finally:
             output_path.unlink()

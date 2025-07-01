@@ -44,32 +44,32 @@ class Adapter(ABC):
 
     def get_required_features(self, ir: dict[str, Any]) -> set[str]:
         """Determine what features are required by the given IR.
-        
+
         Args:
             ir: StanzaFlow IR dictionary
-            
+
         Returns:
             Set of required feature names
         """
         features = set()
-        
+
         workflow = ir.get("workflow", {})
         agents = workflow.get("agents", [])
-        
+
         # Basic workflow features
         if agents:
             features.add("agents")
-            
+
         # Check for steps
         has_steps = any(agent.get("steps") for agent in agents)
         if has_steps:
             features.add("steps")
-            
+
         # Check for step-level features
         for agent in agents:
             for step in agent.get("steps", []):
                 attributes = step.get("attributes", {})
-                
+
                 if "artifact" in attributes:
                     features.add("artifacts")
                 if "retry" in attributes:
@@ -80,15 +80,15 @@ class Adapter(ABC):
                     features.add("branch")
                 if "parallel" in attributes:
                     features.add("parallel")
-        
+
         # Check for secrets
         if workflow.get("secrets"):
             features.add("secrets")
-            
+
         # Check for escape blocks
         if workflow.get("escape_blocks"):
             features.add("ai_escape")
-            
+
         return features
 
     def get_capability_gaps(self, ir: dict[str, Any]) -> set[str]:

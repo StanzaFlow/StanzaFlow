@@ -22,15 +22,15 @@ class LangGraphAdapter(Adapter):
         """Return the set of features this adapter supports."""
         return {
             "agents",
-            "steps", 
+            "steps",
             "artifacts",
             "retry",
-            "timeout", 
+            "timeout",
             "secrets",
             # Note: branching, loops, and parallel execution are planned for future releases
         }
 
-    def emit(self, ir: dict[str, Any], output_dir: Path) -> Path:  # type: ignore[override]
+    def emit(self, ir: dict[str, Any], output_dir: Path) -> Path:
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path = output_dir / "workflow.py"
         LangGraphEmitter().emit(ir, output_path)

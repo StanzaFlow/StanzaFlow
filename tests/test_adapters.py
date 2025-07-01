@@ -92,7 +92,10 @@ def test_adapter_capabilities():
                     "steps": [
                         {
                             "name": "Step",
-                            "attributes": {"artifact": "test.txt", "branch": "condition"},
+                            "attributes": {
+                                "artifact": "test.txt",
+                                "branch": "condition",
+                            },
                         }
                     ],
                 }
@@ -122,7 +125,10 @@ def test_required_features():
                 {
                     "name": "TestAgent",
                     "steps": [
-                        {"name": "TestStep", "attributes": {"artifact": "test.txt", "retry": 3}}
+                        {
+                            "name": "TestStep",
+                            "attributes": {"artifact": "test.txt", "retry": 3},
+                        }
                     ],
                 }
             ],

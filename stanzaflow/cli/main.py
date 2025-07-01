@@ -102,7 +102,7 @@ def graph(
 
     except Exception as e:
         console.print(f"[red]Graph generation failed:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -144,10 +144,10 @@ def compile(
 
         # Validate secrets
         from stanzaflow.core.secrets import validate_secrets
-        
+
         missing_secrets = validate_secrets(ir)
         if missing_secrets:
-            console.print(f"[red]Error: Missing required environment variables:[/red]")
+            console.print("[red]Error: Missing required environment variables:[/red]")
             for secret in missing_secrets:
                 console.print(f"  ❌ {secret}")
             console.print("\n[yellow]Solution:[/yellow]")
@@ -189,13 +189,13 @@ def compile(
         if ai_escapes:
             console.print(f"[blue]Processing AI escapes with model:[/blue] {model}")
             from stanzaflow.core.ai_escape import process_ai_escapes
-            
+
             try:
                 ir = process_ai_escapes(ir, model)
                 console.print("✅ AI escapes processed")
             except Exception as e:
                 console.print(f"[red]AI escape processing failed:[/red] {e}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from e
 
         console.print(f"🔧 Generating {target} code…")
         entry_file = adapter.emit(ir, output.parent if output else Path.cwd())
@@ -211,13 +211,13 @@ def compile(
 
         if isinstance(e, UnknownAdapterError):
             console.print(f"[red]Error:[/red] {e}")
-            raise typer.Exit(2)  # Use exit code 2 for configuration errors
+            raise typer.Exit(2) from e  # Use exit code 2 for configuration errors
         elif isinstance(e, typer.Exit):
             # Let typer.Exit propagate with its intended exit code
             raise
         else:
             console.print(f"[red]Compilation failed:[/red] {e}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
 
 
 @app.command()
@@ -280,22 +280,26 @@ def audit(
         # Display statistics and summary
         stats = audit_results.get("statistics", {})
         summary = audit_results.get("summary", {})
-        
+
         if stats and verbose:
             console.print("\n[cyan]📊 Workflow Statistics:[/cyan]")
             console.print(f"  • Agents: {stats.get('agents', 0)}")
             console.print(f"  • Total Steps: {stats.get('total_steps', 0)}")
-            console.print(f"  • Average Steps per Agent: {stats.get('avg_steps_per_agent', 0)}")
+            console.print(
+                f"  • Average Steps per Agent: {stats.get('avg_steps_per_agent', 0)}"
+            )
             console.print(f"  • Secrets: {stats.get('secrets', 0)}")
             console.print(f"  • Escape Blocks: {stats.get('escape_blocks', 0)}")
-            console.print(f"  • Complexity: {summary.get('complexity_score', 'unknown')}")
-            
+            console.print(
+                f"  • Complexity: {summary.get('complexity_score', 'unknown')}"
+            )
+
             attr_usage = stats.get("attribute_usage", {})
             if attr_usage:
                 console.print("  • Attribute Usage:")
                 for attr, count in sorted(attr_usage.items()):
                     console.print(f"    - {attr}: {count}")
-            
+
             secret_status = stats.get("secret_status", {})
             if secret_status:
                 console.print("  • Secret Status:")
@@ -306,13 +310,15 @@ def audit(
             health = summary.get("health", "unknown")
             health_colors = {
                 "excellent": "green",
-                "good": "blue", 
+                "good": "blue",
                 "fair": "yellow",
                 "poor": "red",
             }
             health_color = health_colors.get(health, "white")
-            
-            console.print(f"\n[{health_color}]🏥 Workflow Health: {health.upper()}[/{health_color}]")
+
+            console.print(
+                f"\n[{health_color}]🏥 Workflow Health: {health.upper()}[/{health_color}]"
+            )
 
         # Summary
         total_issues = len(audit_results["issues"])
@@ -338,7 +344,7 @@ def audit(
             import traceback
 
             console.print(f"[red]Details:[/red] {traceback.format_exc()}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -375,14 +381,14 @@ def init(
 def docs() -> None:
     """Open documentation or show documentation links."""
     import webbrowser
-    
+
     docs_url = "https://github.com/stanzaflow/stanzaflow#readme"
-    
+
     console.print("[green]📚 StanzaFlow Documentation[/green]")
     console.print(f"   Main docs: {docs_url}")
     console.print("   Spec: docs/spec-v0.md")
     console.print("   Examples: tests/fixtures/")
-    
+
     # Try to open in browser
     try:
         webbrowser.open(docs_url)

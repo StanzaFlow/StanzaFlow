@@ -239,8 +239,11 @@ def _try_graphviz_fallback(ir: dict[str, Any], output_path: Path, out_fmt: str) 
 def _try_diagrams_library(ir: dict[str, Any], output_path: Path, out_fmt: str) -> bool:
     """Try using the diagrams library for rendering."""
     try:
-        from diagrams import Diagram
-        from diagrams.programming.flowchart import Process, StartEnd
+        from diagrams import Diagram  # type: ignore[import-untyped]
+        from diagrams.programming.flowchart import (  # type: ignore[import-untyped]
+            Process,
+            StartEnd,
+        )
 
         workflow = ir.get("workflow", {})
         title = workflow.get("title", "Untitled Workflow")

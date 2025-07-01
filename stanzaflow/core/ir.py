@@ -34,7 +34,7 @@ def _load_schema() -> Draft202012Validator:
                 raise FileNotFoundError(
                     "Could not locate ir-0.2.json schema. "
                     "This indicates a packaging issue."
-                )
+                ) from None
             with open(fallback_path, encoding="utf-8") as fp:
                 schema = json.load(fp)
 

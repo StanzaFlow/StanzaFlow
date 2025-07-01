@@ -193,10 +193,10 @@ def test_todo_comments(tmp_path):
     adapter = get_adapter("langgraph")
     path = adapter.emit(ir, tmp_path)
     text = path.read_text()
-    
+
     # Check that retry is implemented (not TODO)
     assert "# Retry logic for Work" in text
     assert "max_retries = 2" in text
-    
+
     # Check that unsupported attributes generate TODO comments
     assert "# TODO[escape]: Unsupported attributes → unsupported_feature" in text

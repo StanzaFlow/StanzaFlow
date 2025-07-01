@@ -2,6 +2,7 @@
 
 try:
     from importlib.metadata import version
+
     __version__ = version("stanzaflow")
 except ImportError:
     # Fallback for development installs
