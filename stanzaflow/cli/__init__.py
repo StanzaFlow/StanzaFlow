@@ -1,1 +1,1 @@
-"""StanzaFlow CLI modules.""" 
+"""StanzaFlow CLI modules."""

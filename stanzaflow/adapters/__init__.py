@@ -1,28 +1,32 @@
-"""StanzaFlow runtime adapters.""" 
+"""StanzaFlow adapters for different runtime targets."""
 
 from __future__ import annotations
 
-from typing import Dict, Type
-
 from .base import Adapter
+from .langgraph.adapter import LangGraphAdapter
 
-# Import concrete adapters here to auto-register
-
-from .langgraph.adapter import LangGraphAdapter  # noqa: E402
-
-_ADAPTERS: Dict[str, Type[Adapter]] = {
-    LangGraphAdapter.target: LangGraphAdapter,
+# Registry of available adapters
+_ADAPTERS: dict[str, type[Adapter]] = {
+    "langgraph": LangGraphAdapter,
 }
 
 
 def get_adapter(name: str) -> Adapter:
-    """Return an adapter instance by *name*.
+    """Get an adapter instance by name.
+
+    Args:
+        name: Name of the adapter
+
+    Returns:
+        Adapter instance
 
     Raises:
-        ValueError: if *name* is not a supported adapter key.
+        UnknownAdapterError: If adapter name is not recognized
     """
-    key = name.lower()
-    cls = _ADAPTERS.get(key)
-    if cls is None:
-        raise ValueError(f"Unsupported adapter '{name}'. Supported: {list(_ADAPTERS)}")
-    return cls() 
+    from stanzaflow.core.exceptions import UnknownAdapterError
+
+    if name not in _ADAPTERS:
+        available = list(_ADAPTERS.keys())
+        raise UnknownAdapterError(name, available)
+
+    return _ADAPTERS[name]()

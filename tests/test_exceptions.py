@@ -1,11 +1,9 @@
 """Test exception classes."""
 
-import pytest
-
 from stanzaflow.core.exceptions import (
-    StanzaFlowError,
-    ParseError,
     CompileError,
+    ParseError,
+    StanzaFlowError,
     UnsupportedPattern,
 )
 
@@ -48,4 +46,4 @@ def test_unsupported_pattern():
     )
     assert error.message == "pattern not supported"
     assert error.pattern == "parallel"
-    assert error.target == "langgraph" 
+    assert error.target == "langgraph"

@@ -1,1 +1,1 @@
-"""LangGraph adapter for StanzaFlow.""" 
+"""LangGraph adapter for StanzaFlow."""

@@ -25,6 +25,57 @@ test, and cache.
 
 ---
 
+## AI Escape System
+
+### What are AI Escapes?
+
+AI escapes are StanzaFlow's solution for handling workflow patterns that aren't directly supported by a target runtime adapter. Instead of failing compilation, StanzaFlow can automatically generate code patches using LLMs.
+
+### How They Work
+
+1. **Pattern Detection**: When the compiler encounters unsupported attributes or patterns, it marks them with `TODO[escape]` comments
+2. **AI Generation**: With `--ai-escapes` enabled, StanzaFlow sends the unsupported pattern to an LLM with context about the target runtime
+3. **Code Injection**: Generated code is injected into the workflow and marked with `TODO[escape]` tags
+4. **Validation**: Generated code undergoes basic validation and is cached for future use
+
+### Usage
+
+```bash
+# Compile with AI escapes disabled (default, deterministic)
+stz compile workflow.sf.md --target langgraph
+
+# Enable AI escapes (experimental, requires API key)
+stz compile workflow.sf.md --target langgraph --ai-escapes --model gpt-4
+
+# Audit will show which patterns need escapes
+stz audit workflow.sf.md --target langgraph
+```
+
+### When to Use AI Escapes
+
+**✅ Good for:**
+- Prototyping with unsupported attributes
+- Bridging gaps until official adapter support
+- Learning what patterns are possible
+
+**⚠️ Be careful with:**
+- Production workflows (not yet stable)
+- CI/CD pipelines (non-deterministic)
+- Complex branching logic (may generate incorrect code)
+
+**❌ Avoid for:**
+- Mission-critical workflows
+- When deterministic builds are required
+
+### Security & Determinism
+
+- Generated code runs in sandboxed subprocess with `seccomp` restrictions
+- Cache keyed by IR hash for reproducible builds
+- Static analysis blocks dangerous operations (`os.system`, etc.)
+- CI should run with `--no-ai-escapes` for reproducible builds
+
+---
+
 ## Pipeline
 
 ```

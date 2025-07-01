@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "stanzaflow"
-dynamic = ["version"]
-description = "Write workflows the way you write stanzas"
-authors = [
-    {name = "StanzaFlow Team", email = "team@stanzaflow.org"}
-]
+version = "0.0.2"
+description = "Flow-first AI workflow compiler"
 readme = "README.md"
-license = {text = "MIT"}
-requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    { name = "StanzaFlow Contributors" },
+]
+keywords = ["ai", "workflow", "compiler", "langgraph"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -20,67 +20,71 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Code Generators",
-    "Topic :: Software Development :: Compilers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-keywords = ["workflow", "agent", "dsl", "compiler", "markdown"]
-
+requires-python = ">=3.11"
 dependencies = [
-    "lark>=1.1.8",
+    "lark>=1.1.5",
     "typer>=0.9.0",
-    "litellm>=1.0.0",
-    "pydantic>=2.0.0",
     "rich>=13.0.0",
-    "pyyaml>=6.0.0",
-    "jinja2>=3.0.0",
-    "jsonschema>=4.20.0",
+    "jsonschema>=4.0.0",
+    "platformdirs>=3.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.21.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
-    "mypy>=1.7.0",
+    "mypy>=1.5.0",
     "pre-commit>=3.0.0",
-    "mdformat>=0.7.0",
-    "diagrams>=0.23.0",  # Graphviz fallback
 ]
+
+[project.urls]
+Homepage = "https://github.com/stanzaflow/stanzaflow"
+Repository = "https://github.com/stanzaflow/stanzaflow"
+Issues = "https://github.com/stanzaflow/stanzaflow/issues"
 
 [project.scripts]
 stanzaflow = "stanzaflow.cli.main:app"
 stz = "stanzaflow.cli.main:app"
 
-[project.urls]
-Homepage = "https://github.com/stanzaflow/stanzaflow"
-Documentation = "https://github.com/stanzaflow/stanzaflow/docs"
-Repository = "https://github.com/stanzaflow/stanzaflow"
-Issues = "https://github.com/stanzaflow/stanzaflow/issues"
+[tool.hatch.build.targets.wheel]
+packages = ["stanzaflow"]
 
-[tool.hatch.version]
-path = "stanzaflow/__init__.py"
+[tool.hatch.build.targets.wheel.sources]
+"stanzaflow" = "stanzaflow"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/stanzaflow",
+    "/tests",
+    "/README.md",
+    "/LICENSE",
+    "/pyproject.toml",
+]
+
+# Ensure package data is included
+[tool.hatch.build.targets.wheel.shared-data]
+"stanzaflow/schemas" = "stanzaflow/schemas"
+"stanzaflow/core/stz_grammar.lark" = "stanzaflow/core/stz_grammar.lark"
 
 [tool.black]
 line-length = 88
 target-version = ['py311']
 
 [tool.ruff]
-target-version = "py311"
-line-length = 88
-select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "B",   # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "UP",  # pyupgrade
-]
 preview = false
-ignore = []
+line-length = 88
+target-version = "py311"
 
-[tool.ruff.isort]
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+ignore = ["E501"]  # Line length handled by black
+
+[tool.ruff.lint.isort]
 known-first-party = ["stanzaflow"]
 
 [tool.mypy]
@@ -134,4 +138,6 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
-] 
+]
+
+ 

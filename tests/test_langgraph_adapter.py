@@ -11,11 +11,11 @@ from stanzaflow.core.exceptions import CompileError
 
 class TestLangGraphEmitter:
     """Test LangGraph emitter."""
-    
+
     def setup_method(self):
         """Set up test fixtures."""
         self.emitter = LangGraphEmitter()
-    
+
     def test_emit_simple_workflow(self):
         """Test emitting a simple workflow."""
         ir = {
@@ -23,30 +23,22 @@ class TestLangGraphEmitter:
             "workflow": {
                 "title": "Test Workflow",
                 "agents": [
-                    {
-                        "name": "Bot",
-                        "steps": [
-                            {
-                                "name": "Hello",
-                                "attributes": {}
-                            }
-                        ]
-                    }
+                    {"name": "Bot", "steps": [{"name": "Hello", "attributes": {}}]}
                 ],
                 "escape_blocks": [],
-                "secrets": []
-            }
+                "secrets": [],
+            },
         }
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             output_path = Path(f.name)
-        
+
         try:
             self.emitter.emit(ir, output_path)
-            
+
             # Check that file was created
             assert output_path.exists()
-            
+
             # Check file content
             content = output_path.read_text()
             assert "MIT License" in content
@@ -54,10 +46,10 @@ class TestLangGraphEmitter:
             assert "def bot_agent(state: WorkflowState)" in content
             assert "Test Workflow" in content
             assert "Hello" in content
-            
+
         finally:
             output_path.unlink()
-    
+
     def test_emit_multi_agent_workflow(self):
         """Test emitting a multi-agent workflow."""
         ir = {
@@ -70,65 +62,55 @@ class TestLangGraphEmitter:
                         "steps": [
                             {
                                 "name": "Process",
-                                "attributes": {"artifact": "result.json"}
+                                "attributes": {"artifact": "result.json"},
                             }
-                        ]
+                        ],
                     },
-                    {
-                        "name": "Human",
-                        "steps": [
-                            {
-                                "name": "Review",
-                                "attributes": {}
-                            }
-                        ]
-                    }
+                    {"name": "Human", "steps": [{"name": "Review", "attributes": {}}]},
                 ],
                 "escape_blocks": [],
-                "secrets": []
-            }
+                "secrets": [],
+            },
         }
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             output_path = Path(f.name)
-        
+
         try:
             self.emitter.emit(ir, output_path)
-            
+
             content = output_path.read_text()
             assert "def bot_agent(state: WorkflowState)" in content
             assert "def human_agent(state: WorkflowState)" in content
             assert 'graph.add_edge("bot", "human")' in content
             assert 'state["artifacts"]["result.json"]' in content
-            
+
         finally:
             output_path.unlink()
-    
+
     def test_sanitize_name(self):
         """Test name sanitization."""
         assert self.emitter._sanitize_name("Bot") == "bot"
         assert self.emitter._sanitize_name("Bot Agent") == "bot_agent"
         assert self.emitter._sanitize_name("Bot-Agent") == "bot_agent"
-        assert self.emitter._sanitize_name("123Bot") == "_123bot"
+        assert self.emitter._sanitize_name("123Bot") == "item_123bot"
+        assert self.emitter._sanitize_name("123Bot", "agent") == "agent_123bot"
         assert self.emitter._sanitize_name("Agent@Home") == "agent_home"
-    
+
     def test_unsupported_ir_version(self):
         """Test error on unsupported IR version."""
-        ir = {
-            "ir_version": "1.0",
-            "workflow": {"title": "Test", "agents": []}
-        }
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        ir = {"ir_version": "1.0", "workflow": {"title": "Test", "agents": []}}
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             output_path = Path(f.name)
-        
+
         try:
             with pytest.raises(CompileError, match="Unsupported IR version"):
                 self.emitter.emit(ir, output_path)
         finally:
             if output_path.exists():
                 output_path.unlink()
-    
+
     def test_no_agents_error(self):
         """Test error when no agents are present."""
         ir = {
@@ -137,20 +119,20 @@ class TestLangGraphEmitter:
                 "title": "Empty Workflow",
                 "agents": [],
                 "escape_blocks": [],
-                "secrets": []
-            }
+                "secrets": [],
+            },
         }
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             output_path = Path(f.name)
-        
+
         try:
             with pytest.raises(CompileError, match="No agents found"):
                 self.emitter.emit(ir, output_path)
         finally:
             if output_path.exists():
                 output_path.unlink()
-    
+
     def test_compile_to_langgraph_function(self):
         """Test the convenience function."""
         ir = {
@@ -160,29 +142,61 @@ class TestLangGraphEmitter:
                 "agents": [
                     {
                         "name": "TestAgent",
-                        "steps": [
-                            {
-                                "name": "TestStep",
-                                "attributes": {}
-                            }
-                        ]
+                        "steps": [{"name": "TestStep", "attributes": {}}],
                     }
                 ],
                 "escape_blocks": [],
-                "secrets": []
-            }
+                "secrets": [],
+            },
         }
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             output_path = Path(f.name)
-        
+
         try:
             compile_to_langgraph(ir, output_path)
-            
+
             assert output_path.exists()
             content = output_path.read_text()
             assert "Function Test" in content
             assert "testagent_agent" in content
-            
+
         finally:
-            output_path.unlink() 
+            output_path.unlink()
+
+
+def test_todo_comments(tmp_path):
+    from stanzaflow.adapters import get_adapter
+
+    ir = {
+        "ir_version": "0.2",
+        "workflow": {
+            "title": "TODO Demo",
+            "agents": [
+                {
+                    "name": "Bot",
+                    "steps": [
+                        {
+                            "name": "Work",
+                            "attributes": {
+                                "artifact": "out.txt",
+                                "retry": 2,
+                                "unsupported_feature": "bar",  # This should generate TODO
+                            },
+                        }
+                    ],
+                }
+            ],
+        },
+    }
+
+    adapter = get_adapter("langgraph")
+    path = adapter.emit(ir, tmp_path)
+    text = path.read_text()
+    
+    # Check that retry is implemented (not TODO)
+    assert "# Retry logic for Work" in text
+    assert "max_retries = 2" in text
+    
+    # Check that unsupported attributes generate TODO comments
+    assert "# TODO[escape]: Unsupported attributes → unsupported_feature" in text

@@ -1,0 +1,20 @@
+# Include package data files
+include stanzaflow/schemas/*.json
+include stanzaflow/core/*.lark
+include LICENSE
+include README.md
+
+# Include test fixtures for validation
+recursive-include tests/fixtures *.sf.md *.py *.json *.svg
+
+# Exclude development files
+exclude .pre-commit-config.yaml
+exclude Makefile
+exclude repomix-output.xml
+exclude phase-1-todo.md
+exclude demo_graph.svg
+exclude test_graph.svg
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude htmlcov *
+recursive-exclude artifacts * 

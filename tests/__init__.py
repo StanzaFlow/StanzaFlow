@@ -1,1 +1,1 @@
-"""StanzaFlow test suite.""" 
+"""StanzaFlow test suite."""

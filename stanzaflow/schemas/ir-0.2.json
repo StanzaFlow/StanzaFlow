@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://stanzaflow.org/schemas/ir-0.2.json",
+  "title": "StanzaFlow IR 0.2",
+  "description": "Intermediate representation for StanzaFlow workflows",
+  "type": "object",
+  "required": ["ir_version", "workflow"],
+  "properties": {
+    "ir_version": {
+      "type": "string",
+      "const": "0.2",
+      "description": "IR format version"
+    },
+    "workflow": {
+      "type": "object",
+      "required": ["title", "agents"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Workflow title extracted from heading"
+        },
+        "agents": {
+          "type": "array",
+          "description": "List of workflow agents",
+          "items": {
+            "$ref": "#/definitions/agent"
+          }
+        },
+        "escape_blocks": {
+          "type": "array",
+          "description": "List of escape blocks for unsupported patterns",
+          "items": {
+            "$ref": "#/definitions/escape_block"
+          },
+          "default": []
+        },
+        "secrets": {
+          "type": "array", 
+          "description": "List of secret environment variables",
+          "items": {
+            "$ref": "#/definitions/secret"
+          },
+          "default": []
+        }
+      }
+    }
+  },
+  "definitions": {
+    "agent": {
+      "type": "object",
+      "required": ["name", "steps"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Agent name"
+        },
+        "steps": {
+          "type": "array",
+          "description": "List of steps for this agent",
+          "items": {
+            "$ref": "#/definitions/step"
+          }
+        }
+      }
+    },
+    "step": {
+      "type": "object",
+      "required": ["name", "attributes"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Step name"
+        },
+        "attributes": {
+          "type": "object",
+          "description": "Step attributes",
+          "properties": {
+            "artifact": {
+              "type": "string",
+              "description": "Output artifact path"
+            },
+            "retry": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of retry attempts"
+            },
+            "timeout": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Timeout in seconds"
+            },
+            "on_error": {
+              "type": "string",
+              "description": "Error handling strategy"
+            },
+            "branch": {
+              "type": "string", 
+              "description": "Conditional branch target"
+            },
+            "finally": {
+              "type": "string",
+              "description": "Cleanup step name"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "escape_block": {
+      "type": "object",
+      "required": ["target", "code"],
+      "properties": {
+        "target": {
+          "type": "string",
+          "description": "Target runtime for escape code"
+        },
+        "code": {
+          "type": "string",
+          "description": "Raw escape code"
+        }
+      }
+    },
+    "secret": {
+      "type": "object",
+      "required": ["env_var"],
+      "properties": {
+        "env_var": {
+          "type": "string",
+          "pattern": "^[A-Z_][A-Z0-9_]*$",
+          "description": "Environment variable name"
+        }
+      }
+    }
+  }
+} 
